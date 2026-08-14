@@ -1,0 +1,807 @@
+/*
+ * The ink field.
+ *
+ * One constraint here is not aesthetic: the glyph's dimmest pulse state
+ * (opacity 0.55 over --field) must still clear 4.5:1 against the background.
+ * With #e8e4dc on #0b0b0d that lands at roughly 5.1:1. Moving either colour
+ * means re-checking it.
+ */
+
+:root {
+  --field: #0b0b0d;
+  --field-raised: #121216;
+  --ink: #e8e4dc;
+  --ink-dim: rgba(232, 228, 220, 0.66);
+  --ink-faint: rgba(232, 228, 220, 0.38);
+  --rule: rgba(232, 228, 220, 0.14);
+  --ember: #c07a4e;
+  --ember-dim: rgba(192, 122, 78, 0.35);
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  --measure: 34rem;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--field);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--ink-dim);
+  text-underline-offset: 0.2em;
+}
+a:hover {
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------------------ shell */
+
+.shell {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  grid-template-areas:
+    "brand brand"
+    "rail  main"
+    "rail  colophon";
+  gap: 0 3.5rem;
+  align-items: start;
+  max-width: 66rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 7rem;
+}
+
+.brand {
+  grid-area: brand;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 2.5rem;
+}
+.brand-mark {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+}
+.brand-note {
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.rail {
+  grid-area: rail;
+  position: sticky;
+  top: 1.5rem;
+}
+.rail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+.rail-item {
+  display: grid;
+  grid-template-columns: 2.4rem 1fr;
+  grid-template-areas:
+    "num title"
+    "num purpose";
+  gap: 0 0.4rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--rule);
+  color: inherit;
+  font: inherit;
+  padding: 0.55rem 0.6rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.rail-num {
+  grid-area: num;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  padding-top: 0.25rem;
+}
+.rail-title {
+  grid-area: title;
+  font-size: 0.92rem;
+  color: var(--ink-dim);
+}
+.rail-purpose {
+  grid-area: purpose;
+  font-size: 0.74rem;
+  color: var(--ink-faint);
+  font-style: italic;
+}
+.rail-item:hover:not(.is-locked) {
+  background: var(--field-raised);
+}
+.rail-item.is-current {
+  border-left-color: var(--ember);
+}
+.rail-item.is-current .rail-title {
+  color: var(--ink);
+}
+.rail-item.is-visited .rail-num {
+  color: var(--ember-dim);
+}
+.rail-item.is-locked {
+  cursor: not-allowed;
+}
+.rail-item.is-locked .rail-title,
+.rail-item.is-locked .rail-num {
+  color: rgba(232, 228, 220, 0.24);
+}
+
+.stage-host {
+  grid-area: main;
+  min-width: 0;
+}
+.colophon {
+  grid-area: colophon;
+  margin-top: 5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+}
+.colophon p {
+  margin: 0 0 0.4rem;
+}
+
+/* ------------------------------------------------------------------ stage */
+
+.stage {
+  max-width: var(--measure);
+  animation: rise 0.45s ease-out both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem);
+  }
+}
+
+.stage-index {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.3em;
+  color: var(--ember);
+  margin: 0 0 0.4rem;
+}
+.stage-title {
+  font-size: clamp(1.7rem, 4vw, 2.3rem);
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 0 0 1.6rem;
+  letter-spacing: -0.01em;
+}
+.stage-title:focus-visible {
+  outline: 1px solid var(--ember);
+  outline-offset: 0.4rem;
+}
+.section-title {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 400;
+  margin: 2.4rem 0 0.8rem;
+}
+
+.prose p {
+  margin: 0 0 1.1rem;
+  color: var(--ink-dim);
+}
+.prose-lead p {
+  color: var(--ink);
+  font-size: 1.06rem;
+}
+.prose-lead p:first-child {
+  font-size: 1.24rem;
+  line-height: 1.45;
+}
+
+.footnote {
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+  line-height: 1.5;
+  margin: 0.6rem 0 0;
+  max-width: 30rem;
+}
+.locked-reason {
+  color: var(--ink-dim);
+  border-left: 1px solid var(--ember-dim);
+  padding-left: 1rem;
+}
+.done-line {
+  flex-basis: 100%;
+  margin: 0 0 0.4rem;
+  color: var(--ink-dim);
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin: 2rem 0 0;
+  align-items: center;
+}
+
+.button {
+  font: inherit;
+  font-size: 0.92rem;
+  padding: 0.6rem 1.2rem;
+  background: none;
+  border: 1px solid var(--rule);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.button:hover {
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+.button:focus-visible {
+  outline: 1px solid var(--ember);
+  outline-offset: 2px;
+}
+.button-primary {
+  border-color: var(--ember-dim);
+  color: var(--ink);
+}
+.button-primary:hover {
+  border-color: var(--ember);
+  background: rgba(192, 122, 78, 0.08);
+}
+.button-quiet {
+  border-color: transparent;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  padding-inline: 0.2rem;
+}
+
+.field-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 0.5rem;
+}
+.statement-input {
+  width: 100%;
+  background: var(--field-raised);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  line-height: 1.5;
+  padding: 0.9rem 1rem;
+  resize: vertical;
+}
+.statement-input:focus {
+  outline: none;
+  border-color: var(--ember-dim);
+}
+.statement-input::placeholder {
+  color: rgba(232, 228, 220, 0.26);
+  font-style: italic;
+}
+.field-error {
+  color: var(--ember);
+  font-size: 0.88rem;
+  margin: 0.7rem 0 0;
+}
+
+.rules {
+  margin: 0;
+}
+.rules dt {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--ink);
+  margin-top: 1.1rem;
+}
+.rules dd {
+  margin: 0.35rem 0 0;
+  color: var(--ink-dim);
+  font-size: 0.94rem;
+}
+.passes {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--ink-dim);
+}
+.passes li {
+  margin-bottom: 0.9rem;
+  font-size: 0.94rem;
+}
+.decisions ul,
+.guidance ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--ink-dim);
+  font-size: 0.94rem;
+}
+.decisions li {
+  margin-bottom: 0.3rem;
+}
+
+/* ------------------------------------------------------------- stage 02 */
+
+.strip-panel {
+  margin-top: 1rem;
+}
+.letter-grid {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.18rem;
+  margin: 0 0 0.4rem;
+  word-break: break-all;
+}
+.cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.15rem 0.1rem;
+  border-bottom: 1px solid transparent;
+}
+.cell-kept {
+  color: var(--ink);
+  border-bottom-color: var(--ember);
+}
+.cell-vowel {
+  color: rgba(232, 228, 220, 0.3);
+  text-decoration: line-through;
+  text-decoration-color: rgba(232, 228, 220, 0.2);
+}
+.cell-repeat {
+  color: rgba(232, 228, 220, 0.3);
+}
+.cell-over-cap {
+  color: rgba(232, 228, 220, 0.3);
+  border-bottom: 1px dotted var(--ember-dim);
+}
+.cell-dropped {
+  color: rgba(232, 228, 220, 0.18);
+}
+.letter-grid-after .cell {
+  font-size: 1.35rem;
+  min-width: 1.9rem;
+}
+.letter-grid-after.is-animated .cell {
+  animation: settle 0.5s ease-out both;
+  animation-delay: calc(var(--i) * 60ms);
+}
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem);
+  }
+}
+.letter-count {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--ink-faint);
+  margin: 0;
+}
+.legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0;
+  margin: 1.2rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.swatch {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-bottom-width: 2px;
+  border-bottom-style: solid;
+  background: rgba(232, 228, 220, 0.06);
+}
+.note {
+  margin-top: 2rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--rule);
+  background: var(--field-raised);
+}
+.note .section-title {
+  margin-top: 0;
+}
+.note p {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 0.94rem;
+}
+
+/* ------------------------------------------------------------ the glyph */
+
+.glyph-frame {
+  position: relative;
+  width: min(26rem, 80vw);
+  margin: 1.5rem 0;
+}
+.glyph {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.glyph-mark {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 0.022;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: calc(0.55 + 0.45 * var(--pulse, 1));
+  filter: drop-shadow(0 0 calc(2px + 9px * var(--pulse, 1)) rgba(232, 228, 220, 0.28));
+}
+.glyph-seal {
+  fill: none;
+  stroke: var(--ink-faint);
+  stroke-width: 0.005;
+}
+.glyph-caption {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+  margin: 0.6rem 0 0;
+}
+.glyph-frame.is-dissolving .glyph {
+  animation: dissolve 1.4s ease-in forwards;
+}
+@keyframes dissolve {
+  to {
+    opacity: 0;
+    filter: blur(14px);
+    transform: scale(1.06);
+  }
+}
+
+/* ------------------------------------------------------------- stage 03 */
+
+.slider-row {
+  margin-top: 1rem;
+}
+.slider {
+  width: 100%;
+  max-width: 24rem;
+  accent-color: var(--ember);
+  background: transparent;
+}
+.slider-readout {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--ink-faint);
+  margin: 0.5rem 0 0;
+  min-height: 1.2em;
+}
+.locked-value {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* ------------------------------------------------------------- stage 04 */
+
+.method-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.8rem;
+  margin: 2rem 0;
+}
+.method-card {
+  text-align: left;
+  background: var(--field-raised);
+  border: 1px solid var(--rule);
+  color: inherit;
+  font: inherit;
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.method-card:hover {
+  border-color: var(--ink-faint);
+}
+.method-card.is-selected {
+  border-color: var(--ember);
+}
+.method-card:focus-visible {
+  outline: 1px solid var(--ember);
+  outline-offset: 2px;
+}
+.method-name {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  color: var(--ink);
+}
+.method-body {
+  margin: 0 0 0.7rem;
+  font-size: 0.92rem;
+  color: var(--ink-dim);
+}
+.method-feel {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.charge-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  align-items: center;
+  margin: 2rem 0;
+}
+.glyph-frame-charge {
+  width: min(20rem, 68vw);
+  margin: 0;
+}
+.charge-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.charge-ring circle {
+  fill: none;
+  stroke: var(--ember);
+  stroke-width: 0.008;
+  opacity: 0.8;
+}
+.charge-controls {
+  display: grid;
+  gap: 0.8rem;
+  justify-items: start;
+}
+.charge-clock {
+  font-family: var(--mono);
+  font-size: 2rem;
+  margin: 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.durations {
+  display: flex;
+  gap: 0.4rem;
+}
+.chip {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 0.3rem 0.6rem;
+  background: none;
+  border: 1px solid var(--rule);
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.chip.is-selected {
+  border-color: var(--ember);
+  color: var(--ink);
+}
+.hold {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 1.1rem 2.2rem;
+  background: none;
+  border: 1px solid var(--ember-dim);
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  transition: background 0.4s, border-color 0.4s, letter-spacing 0.4s;
+}
+.hold:hover:not(:disabled) {
+  border-color: var(--ember);
+}
+.hold.is-holding {
+  background: rgba(192, 122, 78, 0.12);
+  border-color: var(--ember);
+  letter-spacing: 0.34em;
+}
+.hold:disabled {
+  color: var(--ink-faint);
+  border-color: var(--rule);
+  cursor: not-allowed;
+}
+
+.gate {
+  border: 1px solid var(--rule);
+  background: var(--field-raised);
+  padding: 1.2rem 1.4rem;
+  margin: 2.5rem 0;
+}
+.gate .section-title {
+  margin-top: 0;
+}
+.gate-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.5rem 0.8rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--rule);
+}
+.gate-row:first-of-type {
+  border-top: 0;
+}
+.gate-row label {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.gate-row .footnote {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.gate-row input[type="checkbox"] {
+  justify-self: start;
+  accent-color: var(--ember);
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* ------------------------------------------------------------- stage 05 */
+
+.release-block {
+  margin-top: 2.5rem;
+}
+.button-release {
+  --progress: 0%;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 0.9rem 1.8rem;
+  border-color: var(--ember-dim);
+  color: var(--ink);
+  touch-action: none;
+  user-select: none;
+  background-image: linear-gradient(
+    to right,
+    rgba(192, 122, 78, 0.35) var(--progress),
+    transparent var(--progress)
+  );
+}
+.button-release.is-armed {
+  border-color: var(--ember);
+}
+
+/* ------------------------------------------------------------ responsive */
+
+@media (max-width: 52rem) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "brand"
+      "rail"
+      "main"
+      "colophon";
+    gap: 0;
+    padding: 1.5rem 1.1rem 5rem;
+  }
+  .brand {
+    padding-bottom: 1.2rem;
+    margin-bottom: 0;
+  }
+  .rail {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 0 -1.1rem 2rem;
+    padding: 0.5rem 1.1rem;
+    background: var(--field);
+    border-bottom: 1px solid var(--rule);
+  }
+  .rail-list {
+    display: flex;
+    gap: 0.3rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .rail-list::-webkit-scrollbar {
+    display: none;
+  }
+  .rail-item {
+    grid-template-columns: auto;
+    grid-template-areas: "num" "title";
+    border-left: 0;
+    border-bottom: 1px solid var(--rule);
+    padding: 0.4rem 0.6rem;
+    white-space: nowrap;
+  }
+  .rail-item.is-current {
+    border-bottom-color: var(--ember);
+  }
+  .rail-purpose {
+    display: none;
+  }
+  .rail-title {
+    font-size: 0.8rem;
+  }
+  .charge-panel {
+    gap: 1.2rem;
+  }
+  .charge-controls {
+    width: 100%;
+  }
+  .hold {
+    width: 100%;
+  }
+}
+
+/* --------------------------------------------------------- reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .glyph-mark {
+    /* Static glow. The audio is unaffected. */
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(232, 228, 220, 0.28));
+  }
+}
