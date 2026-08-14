@@ -6,8 +6,7 @@
  * ritually appropriate than a modal asking whether you meant it.
  */
 
-import { downloadSigil } from "../../core/svg";
-import { createGlyphView } from "../../core/svg";
+import { createGlyphView, downloadSigil } from "../../core/svg";
 import type { AppContext, StagePanel } from "../context";
 import { h, prefersReducedMotion, prose } from "../dom";
 
@@ -18,20 +17,23 @@ export function releaseStage(ctx: AppContext): StagePanel {
     return {
       node: h(
         "section",
-        { class: "stage stage-released", "aria-labelledby": "stage-05-title" },
+        { class: "stage", "aria-labelledby": "stage-05-title" },
         h("p", { class: "stage-index", text: "05" }),
         h("h1", { id: "stage-05-title", class: "stage-title", text: "Released" }),
-        prose([
-          "The mark is gone, and so is the statement it came from. Nothing was kept — not here, not anywhere else.",
-          "Whatever was worked is now the working's business rather than yours.",
-        ]),
+        prose(
+          [
+            "The mark is gone, and the words with it. Nothing was kept.",
+            "It is not yours to watch now.",
+          ],
+          "epigraph",
+        ),
         h(
           "div",
-          { class: "stage-actions" },
+          { class: "acts" },
           h("button", {
-            class: "button button-quiet",
+            class: "act",
             type: "button",
-            text: "Begin again",
+            text: "Again",
             onClick: () => ctx.goto(1),
           }),
         ),
@@ -48,18 +50,15 @@ export function releaseStage(ctx: AppContext): StagePanel {
         { class: "stage", "aria-labelledby": "stage-05-title" },
         h("p", { class: "stage-index", text: "05" }),
         h("h1", { id: "stage-05-title", class: "stage-title", text: "Release" }),
-        h(
-          "p",
-          { class: "locked-reason" },
-          "There is no mark to release yet. The stage stays here, and stays shut, until one exists.",
-        ),
+        h("p", { class: "aside", text: "There is no mark yet. This stage stays shut until there is." }),
         h(
           "div",
-          { class: "stage-actions" },
+          { class: "acts" },
           h("button", {
-            class: "button button-quiet",
+            class: "act",
             type: "button",
-            text: ctx.session.statement ? "Back to the strip" : "01 — State the Intent",
+            text: ctx.session.statement ? "02" : "01",
+            "aria-label": ctx.session.statement ? "Back to the strip" : "Go to stage 01",
             onClick: () => ctx.goto(ctx.session.statement ? 2 : 1),
           }),
         ),
@@ -77,7 +76,7 @@ export function releaseStage(ctx: AppContext): StagePanel {
   let dissolving = false;
 
   const button = h("button", {
-    class: "button button-release",
+    class: "act act-release",
     type: "button",
   }) as HTMLButtonElement;
   button.textContent = "Release";
@@ -123,7 +122,6 @@ export function releaseStage(ctx: AppContext): StagePanel {
     // Tap once to arm; the second interaction is the hold itself.
     if (armed || dissolving) return;
     armed = true;
-    button.classList.add("is-armed");
     button.textContent = "Hold to release";
   });
   button.addEventListener("pointerdown", (event) => {
@@ -148,46 +146,30 @@ export function releaseStage(ctx: AppContext): StagePanel {
     { class: "stage", "aria-labelledby": "stage-05-title" },
     h("p", { class: "stage-index", text: "05" }),
     h("h1", { id: "stage-05-title", class: "stage-title", text: "Release" }),
-    prose([
-      ctx.session.chargedAt
-        ? "The mark has been driven in. What is left is the copy on this screen, and keeping it is the one thing the method cannot survive."
-        : "The mark can be released at any point, charged or not. Nothing about the destruction depends on the working having been finished.",
-    ]),
 
     frame,
 
     h(
       "div",
-      { class: "release-block" },
-      h("h2", { class: "section-title", text: "Keep it, briefly" }),
-      prose([
-        "Vector only, no raster. Worth downloading only if the intention is to destroy the file's physical form later — printed and burned, buried, thrown into water. A sigil that lives in a downloads folder is a sigil being checked on.",
-        "The exported file carries the statement in an XML comment: invisible in every renderer, plain to anyone who opens it in a text editor. That is a fair mirror of how a physical sigil works.",
-      ]),
+      { class: "release-acts" },
       h(
         "div",
-        { class: "stage-actions" },
+        { class: "release-act" },
+        h("p", { class: "aside", text: "Keep it only to destroy it somewhere real." }),
         h("button", {
-          class: "button button-quiet",
+          class: "act",
           type: "button",
-          text: "Download SVG",
+          text: "Keep",
+          "aria-label": "download the mark as SVG",
           onClick: () => downloadSigil(composition, ctx.session.statement),
         }),
       ),
-    ),
-
-    h(
-      "div",
-      { class: "release-block" },
-      h("h2", { class: "section-title", text: "Destroy it" }),
-      prose([
-        "Releasing erases the mark, the statement, the seed and the charge from this browser at once. Nothing was ever sent anywhere, so there is nothing anywhere to recover it from.",
-      ]),
-      h("div", { class: "stage-actions" }, button),
-      h("p", {
-        class: "footnote",
-        text: "Tap once, then hold. There is no confirmation dialog; the hold is the confirmation.",
-      }),
+      h(
+        "div",
+        { class: "release-act" },
+        h("p", { class: "aside", text: "Nothing is stored elsewhere. Nothing can be recovered." }),
+        button,
+      ),
     ),
   );
 

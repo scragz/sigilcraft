@@ -92,23 +92,19 @@ export function mountApp(root: HTMLElement): void {
           : visited.has(meta.id)
             ? "visited"
             : "open";
-      const button = h(
-        "button",
-        {
-          class: `rail-item is-${state}`,
-          type: "button",
-          "aria-current": isCurrent ? "step" : undefined,
-          "aria-disabled": reason ? "true" : undefined,
-          title: reason ?? undefined,
-          onClick: () => {
-            if (reason) return;
-            ctx.goto(meta.id);
-          },
+      const button = h("button", {
+        class: `rail-item is-${state}`,
+        type: "button",
+        text: meta.num,
+        "aria-current": isCurrent ? "step" : undefined,
+        "aria-disabled": reason ? "true" : undefined,
+        "aria-label": reason ? `${meta.num} ${meta.title} — ${reason}` : `${meta.num} ${meta.title}`,
+        title: reason ?? meta.title,
+        onClick: () => {
+          if (reason) return;
+          ctx.goto(meta.id);
         },
-        h("span", { class: "rail-num", text: meta.num }),
-        h("span", { class: "rail-title", text: meta.title }),
-        h("span", { class: "rail-purpose", text: reason ?? meta.purpose }),
-      );
+      });
       list.append(h("li", {}, button));
       // On narrow screens the rail is a horizontal strip; keep the current
       // stage visible in it without moving the page.
@@ -150,27 +146,14 @@ export function mountApp(root: HTMLElement): void {
 
   clear(root);
   root.append(
-    h(
-      "header",
-      { class: "brand" },
-      h("span", { class: "brand-mark", text: "Sigil Craft" }),
-      h("span", { class: "brand-note", text: "runs entirely in this browser" }),
-    ),
+    h("header", { class: "brand", text: "Sigil Craft" }),
     rail,
     host,
     h(
       "footer",
       { class: "colophon" },
-      h("p", {
-        text: "No account, no server, no analytics. The statement is held in this browser until it is released.",
-      }),
-      h(
-        "p",
-        {},
-        "A ",
-        h("a", { href: "https://splasteen.com", rel: "noreferrer", text: "SPLASTEEN" }),
-        " object.",
-      ),
+      "No server · No record · ",
+      h("a", { href: "https://splasteen.com", rel: "noreferrer", text: "Splasteen" }),
     ),
   );
   root.removeAttribute("aria-busy");

@@ -5,24 +5,44 @@
  * a seed-derived audio field and a breath-rate visual pulse, held for as long
  * as the mark is held.
  *
- * Two things here are safety machinery rather than design:
- *   - the pre-charge gate, which must be on screen before the hold goes live;
+ * Two things here are safety machinery rather than design, and stay however
+ * spare the rest of the app gets:
+ *   - the pre-charge notice, which must be on screen before the hold goes live;
  *   - the pulse rate, which is clamped at the output no matter what the
  *     attractor does.
  */
 
 import { ChargeField, type FieldFrame } from "../../audio/engine";
-import { DURATIONS, METHODS, METHOD_ORDER, type MethodId } from "../../audio/methods";
+import { DURATIONS, METHODS, METHOD_ORDER } from "../../audio/methods";
 import { createGlyphView } from "../../core/svg";
 import type { AppContext, StagePanel } from "../context";
-import { h, prefersReducedMotion, prose } from "../dom";
+import { h, prefersReducedMotion } from "../dom";
 
 const NS = "http://www.w3.org/2000/svg";
-const RING_LENGTH = 1000;
+const RING_RADIUS = 1.02;
 
+/**
+ * The depleting ring, as an arc rather than a dashed circle.
+ *
+ * Dashing was the obvious way to do this and it does not work: Chrome measures
+ * a <circle> as several percent shorter than its own rendering of it, so both
+ * `pathLength` normalisation and `getTotalLength()` leave the ring open at full
+ * charge. Describing the arc directly is exact and owes the renderer nothing.
+ */
+function arcPath(fraction: number, r = RING_RADIUS): string {
+  const f = Math.min(1, Math.max(0, fraction));
+  if (f <= 0.0005) return "";
+  if (f >= 0.9995) return `M 0 ${-r} A ${r} ${r} 0 0 1 0 ${r} A ${r} ${r} 0 0 1 0 ${-r}`;
+  const angle = -Math.PI / 2 + f * Math.PI * 2;
+  const x = (Math.cos(angle) * r).toFixed(4);
+  const y = (Math.sin(angle) * r).toFixed(4);
+  return `M 0 ${-r} A ${r} ${r} 0 ${f > 0.5 ? 1 : 0} 1 ${x} ${y}`;
+}
+
+/** From inside the practice, not bolted on. */
 const CAUTION = [
-  "The practice keeps its own cautions about this stage. Gnosis sought too often, or held too long, stops being a technique and becomes the thing being done — the state gets pursued for itself and the working is forgotten inside it.",
-  "The related failure comes later: a released sigil that gets checked on, revisited, reconsidered, admired. A mark under conscious supervision is a mark the conscious mind is still arguing with, which reintroduces exactly the interference this whole method exists to bypass. Forgetting is the last part of the technique, not what happens when the technique is over.",
+  "Sought too often, the state becomes the working.",
+  "A mark checked on is a mark still being argued with.",
 ];
 
 function formatClock(seconds: number): string {
@@ -33,7 +53,7 @@ function formatClock(seconds: number): string {
 export function chargeStage(ctx: AppContext): StagePanel {
   const { composition } = ctx.derived;
   if (!composition) {
-    return { node: h("section", { class: "stage" }, h("p", { text: "No mark to charge." })) };
+    return { node: h("section", { class: "stage" }, h("p", { text: "Nothing to charge." })) };
   }
 
   const charged = ctx.session.chargedAt !== null;
@@ -47,16 +67,10 @@ export function chargeStage(ctx: AppContext): StagePanel {
   ring.setAttribute("viewBox", "-1.1 -1.1 2.2 2.2");
   ring.setAttribute("class", "charge-ring");
   ring.setAttribute("aria-hidden", "true");
-  const ringPath = document.createElementNS(NS, "circle");
-  ringPath.setAttribute("cx", "0");
-  ringPath.setAttribute("cy", "0");
-  ringPath.setAttribute("r", "1.02");
-  ringPath.setAttribute("pathLength", String(RING_LENGTH));
-  ringPath.setAttribute("stroke-dasharray", String(RING_LENGTH));
-  ringPath.setAttribute("transform", "rotate(-90)");
+  const ringPath = document.createElementNS(NS, "path");
   ring.append(ringPath);
 
-  const frame = h("div", { class: "glyph-frame glyph-frame-charge" }, view.svg, ring);
+  const frame = h("div", { class: "glyph-frame" }, view.svg, ring);
 
   if (charged) {
     return {
@@ -69,7 +83,7 @@ export function chargeStage(ctx: AppContext): StagePanel {
     };
   }
 
-  // ------------------------------------------------------------- the machinery
+  // ------------------------------------------------------------ the machinery
   let field: ChargeField | null = null;
   let raf = 0;
   let lastTick = 0;
@@ -81,11 +95,11 @@ export function chargeStage(ctx: AppContext): StagePanel {
   const remaining = () => Math.max(0, durationMs() - held);
 
   const clock = h("p", { class: "charge-clock", text: formatClock(ctx.session.duration) });
-  const audioNote = h("p", { class: "footnote", hidden: true });
+  const audioNote = h("p", { class: "gate-note", hidden: true });
 
   const setRing = () => {
     const left = durationMs() > 0 ? remaining() / durationMs() : 0;
-    ringPath.setAttribute("stroke-dashoffset", String(RING_LENGTH * (1 - left)));
+    ringPath.setAttribute("d", arcPath(left));
   };
   setRing();
 
@@ -127,7 +141,7 @@ export function chargeStage(ctx: AppContext): StagePanel {
     if (running || !ctx.session.method || !ctx.session.gateSeen) return;
     running = true;
     hold.classList.add("is-holding");
-    hold.textContent = "Holding";
+    hold.textContent = "Held";
     lastTick = performance.now();
     raf = requestAnimationFrame(tick);
     try {
@@ -145,7 +159,7 @@ export function chargeStage(ctx: AppContext): StagePanel {
     } catch {
       // The visual field and the timer stand on their own.
       field = null;
-      audioNote.textContent = "Audio is unavailable in this browser. The hold still counts.";
+      audioNote.textContent = "No audio in this browser. The hold still counts.";
       audioNote.hidden = false;
     }
   };
@@ -157,7 +171,7 @@ export function chargeStage(ctx: AppContext): StagePanel {
     field?.pause();
     setPulse(1);
     hold.classList.remove("is-holding");
-    hold.textContent = held > 0 ? "Hold to continue" : "Hold";
+    hold.textContent = "Hold";
     ctx.updateQuiet({ held });
     persistAt = held;
   };
@@ -165,7 +179,7 @@ export function chargeStage(ctx: AppContext): StagePanel {
   const hold = h("button", {
     class: "hold",
     type: "button",
-    text: ctx.session.held > 0 ? "Hold to continue" : "Hold",
+    text: "Hold",
     onPointerDown: (event: PointerEvent) => {
       (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
       event.preventDefault();
@@ -185,37 +199,29 @@ export function chargeStage(ctx: AppContext): StagePanel {
   }) as HTMLButtonElement;
 
   // ------------------------------------------------------------------ methods
-  const methodCards = h(
+  const methods = h(
     "div",
-    { class: "method-cards", role: "radiogroup", "aria-label": "charging method" },
+    { class: "methods", role: "radiogroup", "aria-label": "method" },
     ...METHOD_ORDER.map((id) => {
       const profile = METHODS[id];
       const selected = ctx.session.method === id;
       return h(
         "button",
         {
-          class: `method-card${selected ? " is-selected" : ""}`,
+          class: `method${selected ? " is-selected" : ""}`,
           type: "button",
           role: "radio",
           "aria-checked": selected ? "true" : "false",
           onClick: () => {
             suspend();
-            ctx.update({
-              method: id,
-              duration: profile.defaultDuration,
-              held: 0,
-            });
+            ctx.update({ method: id, duration: profile.defaultDuration, held: 0 });
           },
         },
-        h("h3", { class: "method-name", text: profile.name }),
-        h("p", { class: "method-body", text: profile.body }),
-        h("p", { class: "method-feel", text: profile.feel }),
+        h("span", { class: "method-name", text: profile.name }),
+        h("span", { class: "method-line", text: profile.line }),
       );
     }),
   );
-
-  // --------------------------------------------------------------- the gate
-  const gate = precharge(ctx, () => field);
 
   const durations = h(
     "div",
@@ -236,9 +242,9 @@ export function chargeStage(ctx: AppContext): StagePanel {
   );
 
   const blocked = !ctx.session.method
-    ? "Choose a method first."
+    ? "Choose a method."
     : !ctx.session.gateSeen
-      ? "The notice above has to be on screen before this goes live."
+      ? "After the notice above."
       : null;
   hold.disabled = blocked !== null;
 
@@ -247,39 +253,19 @@ export function chargeStage(ctx: AppContext): StagePanel {
     { class: "stage", "aria-labelledby": "stage-04-title" },
     h("p", { class: "stage-index", text: "04" }),
     h("h1", { id: "stage-04-title", class: "stage-title", text: "Charge" }),
-    prose([
-      "Four traditional routes to the same place: a state in which the mark can be looked at without being thought about. The field below is derived from the same letters as the mark — the same initial conditions, run as sound instead of as a line.",
-    ]),
 
-    methodCards,
+    methods,
+    frame,
+    clock,
+    durations,
 
-    gate,
+    precharge(ctx, () => field),
 
-    h(
-      "div",
-      { class: "charge-panel" },
-      frame,
-      h(
-        "div",
-        { class: "charge-controls" },
-        clock,
-        durations,
-        hold,
-        blocked ? h("p", { class: "footnote", text: blocked }) : null,
-        h("p", {
-          class: "footnote",
-          text: "Releasing pauses the charge; it does not undo it.",
-        }),
-        audioNote,
-      ),
-    ),
+    hold,
+    blocked ? h("p", { class: "gate-note", text: blocked }) : null,
+    audioNote,
 
-    h(
-      "div",
-      { class: "guidance" },
-      h("h2", { class: "section-title", text: "A note from inside the practice" }),
-      prose(CAUTION),
-    ),
+    h("ul", { class: "laws" }, ...CAUTION.map((text) => h("li", { text }))),
   );
 
   return {
@@ -295,14 +281,14 @@ export function chargeStage(ctx: AppContext): StagePanel {
 }
 
 // ---------------------------------------------------------------------------
-// The pre-charge gate
+// The pre-charge notice
 // ---------------------------------------------------------------------------
 
 /**
  * One compact panel, not a modal and not a checkbox wall. It does not require
  * acknowledgement — only presence before the fact.
  *
- * This is the one place in the app that should be slightly less elegant than it
+ * This is the one place in the app that should be slightly plainer than it
  * wants to be.
  */
 function precharge(ctx: AppContext, field: () => ChargeField | null): HTMLElement {
@@ -334,26 +320,17 @@ function precharge(ctx: AppContext, field: () => ChargeField | null): HTMLElemen
   const panel = h(
     "div",
     { class: "gate" },
-    h("h2", { class: "section-title", text: "Before the hold" }),
     h(
       "div",
       { class: "gate-row" },
       h("label", { for: "gate-motion", text: "Still image" }),
       motion,
-      h("p", {
-        class: "footnote",
-        text: prefersReducedMotion()
-          ? "This stage breathes the glyph slowly, under 1 Hz. Reduced motion is set at the system level, so it stays still."
-          : "This stage breathes the glyph slowly, under 1 Hz. No flashing, no background change.",
-      }),
     ),
-    h(
-      "div",
-      { class: "gate-row" },
-      h("label", { for: "gate-volume", text: "Volume" }),
-      volume,
-      h("p", { class: "footnote", text: "Headphones recommended." }),
-    ),
+    h("div", { class: "gate-row" }, h("label", { for: "gate-volume", text: "Volume" }), volume),
+    h("p", {
+      class: "gate-note",
+      text: "The glyph breathes below one hertz. Nothing flashes. Headphones.",
+    }),
   );
 
   // Presence before the fact: the hold goes live once this has actually been
@@ -389,32 +366,26 @@ function chargedPanel(ctx: AppContext, frame: HTMLElement): HTMLElement {
     "section",
     { class: "stage", "aria-labelledby": "stage-04-title" },
     h("p", { class: "stage-index", text: "04" }),
-    h("h1", { id: "stage-04-title", class: "stage-title", text: "Charge" }),
-    prose([
-      `Driven in by ${method.toLowerCase()}, at ${Math.round(
-        ctx.session.duration / 60,
-      )} minutes. The compression is fixed and the seed will not move again.`,
-    ]),
+    h("h1", { id: "stage-04-title", class: "stage-title", text: "Charged" }),
     frame,
+    h("p", {
+      class: "glyph-caption",
+      text: `${method} · ${Math.round(ctx.session.duration / 60)} min`,
+    }),
+    // The one quiet line. It states itself once and does not come back.
+    ctx.session.doneLineSeen
+      ? null
+      : h("p", { class: "aside done-line", text: "The working is done — let it go." }),
     h(
       "div",
-      { class: "stage-actions" },
-      // The one quiet line. It states itself once and does not come back.
-      ctx.session.doneLineSeen
-        ? null
-        : h("p", { class: "done-line", text: "The working is done — let it go." }),
+      { class: "acts" },
       h("button", {
-        class: "button button-primary",
+        class: "act act-primary",
         type: "button",
-        text: "05 — Release",
+        text: "05",
+        "aria-label": "Go to stage 05, release",
         onClick: () => ctx.goto(5),
       }),
-    ),
-    h(
-      "div",
-      { class: "guidance" },
-      h("h2", { class: "section-title", text: "A note from inside the practice" }),
-      prose(CAUTION),
     ),
   );
 }

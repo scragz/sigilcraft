@@ -4,6 +4,10 @@ An interactive manual for the classical four-stage sigil method, built so that t
 interface performs the mechanism it describes: the compression happens live, on the
 reader's own words, rather than being explained.
 
+The interface is deliberately spare. One thing per screen, a numeral for a stage,
+and constraints stated as law rather than argued. Anything that reads as
+documentation belongs in this file, not in the app.
+
 Client-only. No backend, no account, no request carrying a statement anywhere. The
 session lives in `localStorage` until stage 05 destroys it.
 
@@ -21,7 +25,7 @@ npm run deploy
 | Stage | What happens |
 |---|---|
 | 00 Threshold | The premise, stated and not argued |
-| 01 State the Intent | One statement, with the constraints explained rather than enforced |
+| 01 State the Intent | One statement, with the constraints stated rather than enforced |
 | 02 Strip the Letters | `normalize -> filter -> dedupe`, deterministic, shown character by character |
 | 03 Compress the Glyph | Gesture library, chained and fragmented, then annealed |
 | 04 Charge | A seed-derived audio field and a breath-rate visual pulse, held |
@@ -43,6 +47,10 @@ npm run deploy
   that wants even coverage, centred mass, a mark that reaches the seal circle
   without breaching it, and about three self-intersections. The crossing term is
   load-bearing: a mark reads as one object largely because it crosses itself.
+- `svg.ts` renders the live glyph and serialises the exported one. The live mark is
+  revealed by `stroke-dashoffset` against a declared `pathLength`, which is exact
+  for a polyline — but see the note on the charge ring below before reaching for
+  the same trick on a `<circle>`.
 - The seed is `hash(letterSet.join(''))`, so the same statement always produces the
   same mark. Reroll increments the seed visibly and says by how much.
 
@@ -77,13 +85,26 @@ Two things in stage 04 are constraints rather than design, and should not be
   it is — and the per-frame phase step is capped so a stalled main thread slows the
   breathing rather than jumping it. Opacity moves between 0.55 and 1.0 on the glyph
   stroke only: no background change, no colour inversion, no hard edges.
-- **The palette is load-bearing.** At opacity 0.55, `#e8e4dc` over `#0b0b0d` is about
-  5.1:1. Moving either colour means re-checking that the dimmest pulse state still
+- **The palette is load-bearing.** At opacity 0.55, `#e4dfd4` over `#08080a` is
+  4.96:1. Moving either colour means re-checking that the dimmest pulse state still
   clears 4.5:1.
 
 The pre-charge panel (motion toggle, volume, headphone note) must be on screen once
 before the hold control goes live. It asks for presence, not acknowledgement — no
-modal, no checkbox wall.
+modal, no checkbox wall. It is the one part of the interface allowed to be plainer
+than the rest, and it does not get trimmed for tone.
+
+## Two places the browser disagrees with the obvious approach
+
+Both are load-bearing and both look like needless complication until they are
+changed back:
+
+- **The FDN cannot be a graph of nodes.** See `fdn-processor.js`.
+- **The depleting ring is a generated arc, not a dashed circle.** Chrome measures a
+  `<circle>` several percent shorter than it renders it, so both `pathLength`
+  normalisation and `getTotalLength()` leave a visible gap in the ring at full
+  charge. `arcPath()` in `charge.ts` describes the arc directly and owes the
+  renderer nothing.
 
 ## Deliberate non-features
 
@@ -97,6 +118,8 @@ modal, no checkbox wall.
   charged mark is the mark; scrubbing it afterwards is the conscious fiddling the
   method exists to stop.
 - **The declared decisions in stage 02 are stated, not offered as toggles.**
+- **No explanation of the method anywhere in the app.** Not on the threshold, not
+  beside the strip, not under the glyph. The reasoning lives here.
 
 ## Deployment
 
