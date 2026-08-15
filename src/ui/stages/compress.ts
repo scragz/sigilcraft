@@ -18,11 +18,11 @@ import { seedHex } from "../../core/rng";
 export function compressStage(ctx: AppContext): StagePanel {
   const { composition, seed } = ctx.derived;
   if (!composition) {
-    return { node: h("section", { class: "stage" }, h("p", { text: "Nothing to compress." })) };
+    return { node: h("section", { class: "screen" }, h("p", { text: "Nothing to compress." })) };
   }
 
   const charged = ctx.session.chargedAt !== null;
-  const still = prefersReducedMotion() || ctx.session.stillImage;
+  const still = prefersReducedMotion();
   const view = createGlyphView(composition);
 
   let raf = 0;
@@ -59,9 +59,9 @@ export function compressStage(ctx: AppContext): StagePanel {
 
   const node = h(
     "section",
-    { class: "stage", "aria-labelledby": "stage-03-title" },
-    h("p", { class: "stage-index", text: "03" }),
-    h("h1", { id: "stage-03-title", class: "stage-title", text: "Compress the Glyph" }),
+    { class: "screen", "aria-labelledby": "stage-03-title" },
+    h("p", { class: "screen-index", text: "03" }),
+    h("h1", { id: "stage-03-title", class: "screen-title", text: "Compress the Glyph" }),
 
     h("div", { class: "glyph-frame" }, view.svg),
     h("p", {

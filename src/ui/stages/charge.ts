@@ -1,25 +1,31 @@
 /**
  * Stage 04 — Charge.
  *
- * The nervous system is the substrate of this stage, so this stage touches it:
- * a seed-derived audio field and a breath-rate visual pulse, held for as long
- * as the mark is held.
+ * The screen is the mark and one way out of it. Tap the mark and the field
+ * comes up: a seed-derived drone and a breath-rate luminance pulse, with a ring
+ * that empties as the charge accumulates. Tap it again and everything ramps
+ * back down.
  *
- * Two things here are safety machinery rather than design, and stay however
- * spare the rest of the app gets:
- *   - the pre-charge notice, which must be on screen before the hold goes live;
- *   - the pulse rate, which is clamped at the output no matter what the
- *     attractor does.
+ * There is nothing to configure here. Method, length and level are decided by
+ * the mark and by the constants below — a person who has just written down
+ * something they want should not then be asked to pick a waveform.
+ *
+ * The pulse rate is the one number that is a constraint rather than a taste:
+ * it is clamped to 0.25-1 Hz at the output in engine.ts, no matter what the
+ * attractor does, and `prefers-reduced-motion` stops it entirely. The field
+ * never starts without a tap and always ramps in over more than a second.
  */
 
 import { ChargeField, type FieldFrame } from "../../audio/engine";
-import { DURATIONS, METHODS, METHOD_ORDER } from "../../audio/methods";
 import { createGlyphView } from "../../core/svg";
 import type { AppContext, StagePanel } from "../context";
 import { h, prefersReducedMotion } from "../dom";
 
 const NS = "http://www.w3.org/2000/svg";
 const RING_RADIUS = 1.02;
+
+/** Fixed, and not a slider. Loud enough to fill headphones, not to startle. */
+const VOLUME = 0.5;
 
 /**
  * The depleting ring, as an arc rather than a dashed circle.
@@ -39,25 +45,13 @@ function arcPath(fraction: number, r = RING_RADIUS): string {
   return `M 0 ${-r} A ${r} ${r} 0 ${f > 0.5 ? 1 : 0} 1 ${x} ${y}`;
 }
 
-/** From inside the practice, not bolted on. */
-const CAUTION = [
-  "Sought too often, the state becomes the working.",
-  "A mark checked on is a mark still being argued with.",
-];
-
-function formatClock(seconds: number): string {
-  const s = Math.max(0, Math.ceil(seconds));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
 export function chargeStage(ctx: AppContext): StagePanel {
-  const { composition } = ctx.derived;
+  const { composition, method, chargeMs } = ctx.derived;
   if (!composition) {
-    return { node: h("section", { class: "stage" }, h("p", { text: "Nothing to charge." })) };
+    return { node: h("section", { class: "screen" }, h("p", { text: "Nothing to charge." })) };
   }
 
   const charged = ctx.session.chargedAt !== null;
-  const still = () => prefersReducedMotion() || ctx.session.stillImage;
 
   // ---------------------------------------------------------------- the mark
   const view = createGlyphView(composition);
@@ -70,20 +64,6 @@ export function chargeStage(ctx: AppContext): StagePanel {
   const ringPath = document.createElementNS(NS, "path");
   ring.append(ringPath);
 
-  const frame = h("div", { class: "glyph-frame" }, view.svg, ring);
-
-  if (charged) {
-    return {
-      node: chargedPanel(ctx, frame),
-      // The quiet line has now been said. It does not repeat, escalate, or
-      // nag on return visits.
-      dispose: () => {
-        if (!ctx.session.doneLineSeen) ctx.updateQuiet({ doneLineSeen: true });
-      },
-    };
-  }
-
-  // ------------------------------------------------------------ the machinery
   let field: ChargeField | null = null;
   let raf = 0;
   let lastTick = 0;
@@ -91,20 +71,31 @@ export function chargeStage(ctx: AppContext): StagePanel {
   let persistAt = held;
   let running = false;
 
-  const durationMs = () => ctx.session.duration * 1000;
-  const remaining = () => Math.max(0, durationMs() - held);
+  const mark = h(
+    "button",
+    {
+      class: "mark",
+      type: "button",
+      "aria-pressed": "false",
+      "aria-label": charged ? "the charged mark" : "charge the mark",
+      onClick: () => void toggle(),
+    },
+    view.svg,
+    ring,
+  ) as HTMLButtonElement;
 
-  const clock = h("p", { class: "charge-clock", text: formatClock(ctx.session.duration) });
-  const audioNote = h("p", { class: "gate-note", hidden: true });
+  const hint = h("p", {
+    class: "hint",
+    text: charged ? "" : "Tap the mark",
+  });
 
   const setRing = () => {
-    const left = durationMs() > 0 ? remaining() / durationMs() : 0;
-    ringPath.setAttribute("d", arcPath(left));
+    ringPath.setAttribute("d", arcPath(chargeMs > 0 ? 1 - Math.min(1, held / chargeMs) : 0));
   };
   setRing();
 
   const setPulse = (value: number) => {
-    frame.style.setProperty("--pulse", still() ? "1" : value.toFixed(3));
+    mark.style.setProperty("--pulse", prefersReducedMotion() ? "1" : value.toFixed(3));
   };
   setPulse(1);
 
@@ -116,32 +107,22 @@ export function chargeStage(ctx: AppContext): StagePanel {
     const dt = Math.min(250, now - lastTick);
     lastTick = now;
     held += dt;
-    field?.setProgress(Math.min(1, held / durationMs()));
+    field?.setProgress(Math.min(1, held / chargeMs));
     setRing();
-    clock.textContent = formatClock(remaining() / 1000);
     // Survive a reload without losing the charge, without writing every frame.
     if (held - persistAt > 2000) {
       persistAt = held;
       ctx.updateQuiet({ held });
     }
-    if (held >= durationMs()) complete();
+    if (held >= chargeMs) complete();
   };
 
-  const complete = () => {
-    running = false;
-    cancelAnimationFrame(raf);
-    void field?.stop();
-    field = null;
-    // Three things fire together: the mark is fixed, the slider locks, and the
-    // reroll disappears.
-    ctx.update({ held: durationMs(), chargedAt: Date.now() });
-  };
-
-  const begin = async () => {
-    if (running || !ctx.session.method || !ctx.session.gateSeen) return;
+  const start = async () => {
+    if (running) return;
     running = true;
-    hold.classList.add("is-holding");
-    hold.textContent = "Held";
+    mark.classList.add("is-charging");
+    mark.setAttribute("aria-pressed", "true");
+    hint.textContent = "";
     lastTick = performance.now();
     raf = requestAnimationFrame(tick);
     try {
@@ -149,123 +130,70 @@ export function chargeStage(ctx: AppContext): StagePanel {
         field = new ChargeField({
           letters: composition.letters,
           seed: composition.seed,
-          method: ctx.session.method,
-          volume: ctx.session.volume,
+          method: method.id,
+          volume: VOLUME,
           onFrame,
         });
-        field.setProgress(Math.min(1, held / durationMs()));
+        field.setProgress(Math.min(1, held / chargeMs));
       }
       await field.start();
     } catch {
-      // The visual field and the timer stand on their own.
+      // The pulse and the ring stand on their own.
       field = null;
-      audioNote.textContent = "No audio in this browser. The hold still counts.";
-      audioNote.hidden = false;
+      hint.textContent = "No audio here. The charge still runs.";
     }
   };
 
-  const suspend = () => {
+  const stop = (finished: boolean) => {
     if (!running) return;
     running = false;
     cancelAnimationFrame(raf);
-    field?.pause();
     setPulse(1);
-    hold.classList.remove("is-holding");
-    hold.textContent = "Hold";
+    mark.classList.remove("is-charging");
+    mark.setAttribute("aria-pressed", "false");
+    if (finished) {
+      void field?.stop();
+      field = null;
+    } else {
+      field?.pause();
+      hint.textContent = "";
+    }
     ctx.updateQuiet({ held });
     persistAt = held;
   };
 
-  const hold = h("button", {
-    class: "hold",
-    type: "button",
-    text: "Hold",
-    onPointerDown: (event: PointerEvent) => {
-      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-      event.preventDefault();
-      void begin();
-    },
-    onPointerUp: suspend,
-    onPointerCancel: suspend,
-    onKeyDown: (event: KeyboardEvent) => {
-      if (event.repeat || (event.key !== " " && event.key !== "Enter")) return;
-      event.preventDefault();
-      void begin();
-    },
-    onKeyUp: (event: KeyboardEvent) => {
-      if (event.key === " " || event.key === "Enter") suspend();
-    },
-    onBlur: suspend,
-  }) as HTMLButtonElement;
+  const toggle = async () => {
+    if (running) stop(false);
+    else await start();
+  };
 
-  // ------------------------------------------------------------------ methods
-  const methods = h(
-    "div",
-    { class: "methods", role: "radiogroup", "aria-label": "method" },
-    ...METHOD_ORDER.map((id) => {
-      const profile = METHODS[id];
-      const selected = ctx.session.method === id;
-      return h(
-        "button",
-        {
-          class: `method${selected ? " is-selected" : ""}`,
-          type: "button",
-          role: "radio",
-          "aria-checked": selected ? "true" : "false",
-          onClick: () => {
-            suspend();
-            ctx.update({ method: id, duration: profile.defaultDuration, held: 0 });
-          },
-        },
-        h("span", { class: "method-name", text: profile.name }),
-        h("span", { class: "method-line", text: profile.line }),
-      );
-    }),
-  );
-
-  const durations = h(
-    "div",
-    { class: "durations", role: "radiogroup", "aria-label": "duration" },
-    ...DURATIONS.map((seconds) =>
-      h("button", {
-        class: `chip${ctx.session.duration === seconds ? " is-selected" : ""}`,
-        type: "button",
-        role: "radio",
-        "aria-checked": ctx.session.duration === seconds ? "true" : "false",
-        text: seconds >= 600 ? "10 min" : `${seconds / 60} min`,
-        onClick: () => {
-          suspend();
-          ctx.update({ duration: seconds, held: 0 });
-        },
-      }),
-    ),
-  );
-
-  const blocked = !ctx.session.method
-    ? "Choose a method."
-    : !ctx.session.gateSeen
-      ? "After the notice above."
-      : null;
-  hold.disabled = blocked !== null;
+  const complete = () => {
+    stop(true);
+    // Three things fire together: the mark is fixed, the slider locks, and the
+    // reroll disappears.
+    ctx.update({ held: chargeMs, chargedAt: Date.now() });
+  };
 
   const node = h(
     "section",
-    { class: "stage", "aria-labelledby": "stage-04-title" },
-    h("p", { class: "stage-index", text: "04" }),
-    h("h1", { id: "stage-04-title", class: "stage-title", text: "Charge" }),
+    { class: "screen", "aria-labelledby": "stage-04-title" },
+    h("p", { class: "screen-index", text: "04" }),
+    h("h1", { id: "stage-04-title", class: "screen-title", text: charged ? "Charged" : "Charge" }),
 
-    methods,
-    frame,
-    clock,
-    durations,
+    mark,
+    hint,
 
-    precharge(ctx, () => field),
+    // The one quiet line. It states itself once and does not come back.
+    charged && !ctx.session.doneLineSeen
+      ? h("p", { class: "aside done-line", text: "The working is done — let it go." })
+      : null,
 
-    hold,
-    blocked ? h("p", { class: "gate-note", text: blocked }) : null,
-    audioNote,
-
-    h("ul", { class: "laws" }, ...CAUTION.map((text) => h("li", { text }))),
+    h("button", {
+      class: "sigil-act",
+      type: "button",
+      text: "Release",
+      onClick: () => ctx.goto(5),
+    }),
   );
 
   return {
@@ -275,117 +203,10 @@ export function chargeStage(ctx: AppContext): StagePanel {
       cancelAnimationFrame(raf);
       void field?.stop();
       field = null;
-      if (held !== ctx.session.held) ctx.updateQuiet({ held });
+      const patch: Partial<typeof ctx.session> = {};
+      if (held !== ctx.session.held) patch.held = held;
+      if (charged && !ctx.session.doneLineSeen) patch.doneLineSeen = true;
+      if (Object.keys(patch).length) ctx.updateQuiet(patch);
     },
   };
-}
-
-// ---------------------------------------------------------------------------
-// The pre-charge notice
-// ---------------------------------------------------------------------------
-
-/**
- * One compact panel, not a modal and not a checkbox wall. It does not require
- * acknowledgement — only presence before the fact.
- *
- * This is the one place in the app that should be slightly plainer than it
- * wants to be.
- */
-function precharge(ctx: AppContext, field: () => ChargeField | null): HTMLElement {
-  const motion = h("input", {
-    type: "checkbox",
-    id: "gate-motion",
-    onChange: (event: Event) => {
-      ctx.updateQuiet({ stillImage: (event.target as HTMLInputElement).checked });
-    },
-  }) as HTMLInputElement;
-  motion.checked = ctx.session.stillImage || prefersReducedMotion();
-  motion.disabled = prefersReducedMotion();
-
-  const volume = h("input", {
-    type: "range",
-    id: "gate-volume",
-    class: "slider",
-    min: "0",
-    max: "100",
-    step: "1",
-    onInput: (event: Event) => {
-      const v = Number((event.target as HTMLInputElement).value) / 100;
-      ctx.updateQuiet({ volume: v });
-      field()?.setVolume(v);
-    },
-  }) as HTMLInputElement;
-  volume.value = String(Math.round(ctx.session.volume * 100));
-
-  const panel = h(
-    "div",
-    { class: "gate" },
-    h(
-      "div",
-      { class: "gate-row" },
-      h("label", { for: "gate-motion", text: "Still image" }),
-      motion,
-    ),
-    h("div", { class: "gate-row" }, h("label", { for: "gate-volume", text: "Volume" }), volume),
-    h("p", {
-      class: "gate-note",
-      text: "The glyph breathes below one hertz. Nothing flashes. Headphones.",
-    }),
-  );
-
-  // Presence before the fact: the hold goes live once this has actually been
-  // on screen, not merely present in the document.
-  if (!ctx.session.gateSeen) {
-    if (typeof IntersectionObserver === "function") {
-      const observer = new IntersectionObserver(
-        (entries) => {
-          if (!entries.some((e) => e.isIntersecting)) return;
-          observer.disconnect();
-          ctx.update({ gateSeen: true });
-        },
-        { threshold: 0.6 },
-      );
-      observer.observe(panel);
-    } else {
-      ctx.updateQuiet({ gateSeen: true });
-    }
-  }
-
-  return panel;
-}
-
-// ---------------------------------------------------------------------------
-// After the charge
-// ---------------------------------------------------------------------------
-
-function chargedPanel(ctx: AppContext, frame: HTMLElement): HTMLElement {
-  const method = ctx.session.method ? METHODS[ctx.session.method].name : "—";
-  frame.style.setProperty("--pulse", "1");
-
-  return h(
-    "section",
-    { class: "stage", "aria-labelledby": "stage-04-title" },
-    h("p", { class: "stage-index", text: "04" }),
-    h("h1", { id: "stage-04-title", class: "stage-title", text: "Charged" }),
-    frame,
-    h("p", {
-      class: "glyph-caption",
-      text: `${method} · ${Math.round(ctx.session.duration / 60)} min`,
-    }),
-    // The one quiet line. It states itself once and does not come back.
-    ctx.session.doneLineSeen
-      ? null
-      : h("p", { class: "aside done-line", text: "The working is done — let it go." }),
-    h(
-      "div",
-      { class: "acts" },
-      h("button", {
-        class: "act act-primary",
-        type: "button",
-        text: "05",
-        "aria-label": "Go to stage 05, release",
-        onClick: () => ctx.goto(5),
-      }),
-    ),
-  );
 }

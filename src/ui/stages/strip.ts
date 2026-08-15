@@ -23,7 +23,7 @@ function verdict(analysis: StripResult): string | null {
 
 export function stripStage(ctx: AppContext): StagePanel {
   const { analysis } = ctx.derived;
-  const still = prefersReducedMotion() || ctx.session.stillImage;
+  const still = prefersReducedMotion();
   const line = verdict(analysis);
 
   const before = h(
@@ -54,9 +54,9 @@ export function stripStage(ctx: AppContext): StagePanel {
 
   const node = h(
     "section",
-    { class: "stage", "aria-labelledby": "stage-02-title" },
-    h("p", { class: "stage-index", text: "02" }),
-    h("h1", { id: "stage-02-title", class: "stage-title", text: "Strip the Letters" }),
+    { class: "screen", "aria-labelledby": "stage-02-title" },
+    h("p", { class: "screen-index", text: "02" }),
+    h("h1", { id: "stage-02-title", class: "screen-title", text: "Strip the Letters" }),
 
     before,
     h("div", { class: "strip-rule", "aria-hidden": "true" }),

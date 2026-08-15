@@ -1,15 +1,20 @@
 /**
- * The shell: a persistent stepper and one stage at a time.
+ * The shell: a stack of screens with a numeral bar along the bottom.
  *
- * Only the current stage is mounted. Leaving a stage disposes it, which is how
- * the charge field gets torn down — walking away from stage 04 stops the audio,
- * which is the behaviour anyone would expect of it.
+ * Mobile is the design; a wide viewport gets the same screen with more room
+ * around it, not a different layout.
+ *
+ * Only the current screen is mounted. Leaving one disposes it, which is how the
+ * charge field gets torn down — walking away from 04 stops the audio, which is
+ * what anyone would expect of it.
  */
 
 import {
   blankSession,
   clearSession,
   derive,
+  FIRST_STAGE,
+  LAST_STAGE,
   loadSession,
   saveSession,
   type Session,
@@ -22,10 +27,8 @@ import { compressStage } from "./stages/compress";
 import { intentStage } from "./stages/intent";
 import { releaseStage } from "./stages/release";
 import { stripStage } from "./stages/strip";
-import { thresholdStage } from "./stages/threshold";
 
 const BUILDERS: Record<StageId, (ctx: AppContext) => StagePanel> = {
-  0: thresholdStage,
   1: intentStage,
   2: stripStage,
   3: compressStage,
@@ -40,7 +43,7 @@ export function mountApp(root: HTMLElement): void {
   let visited = new Set<StageId>([session.stage]);
 
   const rail = h("nav", { class: "rail", "aria-label": "stages" });
-  const host = h("main", { class: "stage-host", id: "stage-host" });
+  const host = h("main", { class: "screen-host" });
 
   const ctx: AppContext = {
     get session() {
@@ -66,13 +69,12 @@ export function mountApp(root: HTMLElement): void {
       justReleased = false;
       visited.add(stage);
       ctx.update({ stage });
-      host.scrollIntoView({ block: "start", behavior: "auto" });
       window.scrollTo({ top: 0 });
     },
     release() {
       clearSession();
       session = blankSession();
-      visited = new Set<StageId>([0]);
+      visited = new Set<StageId>([FIRST_STAGE]);
       justReleased = true;
       render();
     },
@@ -80,7 +82,7 @@ export function mountApp(root: HTMLElement): void {
 
   function renderRail(): void {
     clear(rail);
-    const current = justReleased ? 5 : session.stage;
+    const current = justReleased ? LAST_STAGE : session.stage;
     const list = h("ol", { class: "rail-list" });
     for (const meta of STAGES) {
       const reason = lockReason(meta.id, ctx);
@@ -106,15 +108,6 @@ export function mountApp(root: HTMLElement): void {
         },
       });
       list.append(h("li", {}, button));
-      // On narrow screens the rail is a horizontal strip; keep the current
-      // stage visible in it without moving the page.
-      if (isCurrent) {
-        queueMicrotask(() => {
-          if (list.scrollWidth > list.clientWidth) {
-            button.scrollIntoView({ inline: "center", block: "nearest" });
-          }
-        });
-      }
     }
     rail.append(list);
   }
@@ -123,12 +116,11 @@ export function mountApp(root: HTMLElement): void {
     panel?.dispose?.();
     panel = null;
 
-    const stage = (justReleased ? 5 : session.stage) as StageId;
-    // A stage whose preconditions have gone away sends you back rather than
+    const stage = (justReleased ? LAST_STAGE : session.stage) as StageId;
+    // A screen whose preconditions have gone away sends you back rather than
     // rendering an empty room.
-    const reason = lockReason(stage, ctx);
-    if (reason) {
-      session = { ...session, stage: session.statement.trim() ? 1 : 0 };
+    if (lockReason(stage, ctx)) {
+      session = { ...session, stage: FIRST_STAGE };
       saveSession(session);
       render();
       return;
@@ -139,15 +131,15 @@ export function mountApp(root: HTMLElement): void {
     clear(host);
     panel = BUILDERS[stage](ctx);
     host.append(panel.node);
+    root.dataset.stage = String(stage);
 
-    const heading = panel.node.querySelector<HTMLElement>(".stage-title");
+    const heading = panel.node.querySelector<HTMLElement>(".screen-title");
     heading?.setAttribute("tabindex", "-1");
   }
 
   clear(root);
   root.append(
     h("header", { class: "brand", text: "Sigil Craft" }),
-    rail,
     host,
     h(
       "footer",
@@ -155,6 +147,7 @@ export function mountApp(root: HTMLElement): void {
       "No server · No record · ",
       h("a", { href: "https://splasteen.com", rel: "noreferrer", text: "Splasteen" }),
     ),
+    rail,
   );
   root.removeAttribute("aria-busy");
   render();

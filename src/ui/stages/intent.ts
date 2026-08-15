@@ -75,9 +75,9 @@ export function intentStage(ctx: AppContext): StagePanel {
 
   const node = h(
     "section",
-    { class: "stage", "aria-labelledby": "stage-01-title" },
-    h("p", { class: "stage-index", text: "01" }),
-    h("h1", { id: "stage-01-title", class: "stage-title", text: "State the Intent" }),
+    { class: "screen", "aria-labelledby": "stage-01-title" },
+    h("p", { class: "screen-index", text: "01" }),
+    h("h1", { id: "stage-01-title", class: "screen-title", text: "State the Intent" }),
 
     h(
       "form",
@@ -105,6 +105,8 @@ export function intentStage(ctx: AppContext): StagePanel {
       class: "aside",
       text: "Digits and marks do not survive the strip. Written as a number, five thousand a month leaves only the month.",
     }),
+
+    h("p", { class: "whisper", text: "Nothing typed here leaves this device" }),
   );
 
   queueMicrotask(() => grow(input));
