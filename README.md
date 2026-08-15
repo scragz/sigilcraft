@@ -8,6 +8,9 @@ The interface is deliberately spare. One thing per screen, a numeral for a stage
 and constraints stated as law rather than argued. Anything that reads as
 documentation belongs in this file, not in the app.
 
+Mobile is the design. A wide viewport gets the same screen with more room around
+it — there is no second layout, and no desktop-only chrome.
+
 Client-only. No backend, no account, no request carrying a statement anywhere. The
 session lives in `localStorage` until stage 05 destroys it.
 
@@ -20,16 +23,31 @@ npm run start      # wrangler dev, serving dist through the worker
 npm run deploy
 ```
 
-## The five stages
+## The five screens
 
-| Stage | What happens |
+| Screen | What happens |
 |---|---|
-| 00 Threshold | The premise, stated and not argued |
 | 01 State the Intent | One statement, with the constraints stated rather than enforced |
 | 02 Strip the Letters | `normalize -> filter -> dedupe`, deterministic, shown character by character |
 | 03 Compress the Glyph | Gesture library, chained and fragmented, then annealed |
-| 04 Charge | A seed-derived audio field and a breath-rate visual pulse, held |
+| 04 Charge | Tap the mark; a seed-derived field comes up until it is tapped off |
 | 05 Release | Hold to destroy the mark, the statement and the session |
+
+## Nothing on 04 is a setting
+
+The charge screen is the mark and one way out of it. Everything the interface
+used to ask for is decided elsewhere:
+
+- **Method** is derived from the seed (`methodForSeed`), the same way the glyph and
+  the audio's initial conditions are. A statement arrives already carrying the way
+  it wants to be driven in, and the distribution across the four is even.
+- **Length** comes from the method and is never shown as a number. The ring around
+  the mark is the only progress there is.
+- **Level** is a constant in `charge.ts`.
+- **Motion** follows `prefers-reduced-motion` and nothing else.
+
+Someone who has just written down a thing they want should not then be asked to
+pick a waveform.
 
 ## Where the work is
 
@@ -77,22 +95,23 @@ determined by the statement, unreadable from it, never repeating.
 
 ## Safety machinery
 
-Two things in stage 04 are constraints rather than design, and should not be
+Three things on 04 are constraints rather than design, and should not be
 "simplified" without re-deriving them:
 
 - **The pulse is luminance breathing, never flashing.** Its rate is clamped to
   0.25–1 Hz at the output — the attractor is never clamped, the signal derived from
   it is — and the per-frame phase step is capped so a stalled main thread slows the
   breathing rather than jumping it. Opacity moves between 0.55 and 1.0 on the glyph
-  stroke only: no background change, no colour inversion, no hard edges.
+  stroke only: no background change, no colour inversion, no hard edges. Measured
+  across the four derived methods: 0.25, 0.48, 0.94, 0.96 Hz.
+- **Audio never starts on its own.** It comes up only on a tap of the mark, ramps
+  in over more than a second from silence, and is peak-limited. The spec's
+  pre-charge notice is gone with the rest of the controls, and it stays gone only
+  while those two things hold: raise the pulse rate, or start sound without a
+  deliberate tap, and a warning has to come back.
 - **The palette is load-bearing.** At opacity 0.55, `#e4dfd4` over `#08080a` is
   4.96:1. Moving either colour means re-checking that the dimmest pulse state still
   clears 4.5:1.
-
-The pre-charge panel (motion toggle, volume, headphone note) must be on screen once
-before the hold control goes live. It asks for presence, not acknowledgement — no
-modal, no checkbox wall. It is the one part of the interface allowed to be plainer
-than the rest, and it does not get trimmed for tone.
 
 ## Two places the browser disagrees with the obvious approach
 
@@ -108,18 +127,19 @@ changed back:
 
 ## Deliberate non-features
 
-- **Stage 00 does not explain itself.** The reticence is functional: the whole method
-  routes around the believing mind, and a threshold that argued for it would activate
-  exactly the faculty being routed around. A high drop-off there is the intended
-  behaviour of a threshold.
 - **No moderation, filtering, or analysis of statement content.** The tool does not
   read what it processes.
 - **Reroll and the compression slider both withdraw once the mark is charged.** A
   charged mark is the mark; scrubbing it afterwards is the conscious fiddling the
   method exists to stop.
 - **The declared decisions in stage 02 are stated, not offered as toggles.**
-- **No explanation of the method anywhere in the app.** Not on the threshold, not
-  beside the strip, not under the glyph. The reasoning lives here.
+- **No explanation of the method anywhere in the app.** Not beside the strip, not
+  under the glyph. The reasoning lives here.
+- **No threshold screen.** The app opens on the statement field. The reticence the
+  threshold was carrying is now carried by the whole thing not explaining itself.
+- **Nothing is selectable except prose and the statement.** The shell sets
+  `user-select: none`; tapping and holding a mark should never leave a person with
+  a blue smear over the interface.
 
 ## Deployment
 

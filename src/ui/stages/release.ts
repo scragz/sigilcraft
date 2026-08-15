@@ -17,9 +17,9 @@ export function releaseStage(ctx: AppContext): StagePanel {
     return {
       node: h(
         "section",
-        { class: "stage", "aria-labelledby": "stage-05-title" },
-        h("p", { class: "stage-index", text: "05" }),
-        h("h1", { id: "stage-05-title", class: "stage-title", text: "Released" }),
+        { class: "screen", "aria-labelledby": "stage-05-title" },
+        h("p", { class: "screen-index", text: "05" }),
+        h("h1", { id: "stage-05-title", class: "screen-title", text: "Released" }),
         prose(
           [
             "The mark is gone, and the words with it. Nothing was kept.",
@@ -47,9 +47,9 @@ export function releaseStage(ctx: AppContext): StagePanel {
     return {
       node: h(
         "section",
-        { class: "stage", "aria-labelledby": "stage-05-title" },
-        h("p", { class: "stage-index", text: "05" }),
-        h("h1", { id: "stage-05-title", class: "stage-title", text: "Release" }),
+        { class: "screen", "aria-labelledby": "stage-05-title" },
+        h("p", { class: "screen-index", text: "05" }),
+        h("h1", { id: "stage-05-title", class: "screen-title", text: "Release" }),
         h("p", { class: "aside", text: "There is no mark yet. This stage stays shut until there is." }),
         h(
           "div",
@@ -76,7 +76,7 @@ export function releaseStage(ctx: AppContext): StagePanel {
   let dissolving = false;
 
   const button = h("button", {
-    class: "act act-release",
+    class: "sigil-act sigil-act-release",
     type: "button",
   }) as HTMLButtonElement;
   button.textContent = "Release";
@@ -87,7 +87,7 @@ export function releaseStage(ctx: AppContext): StagePanel {
     dissolving = true;
     button.disabled = true;
     button.textContent = "Gone";
-    if (prefersReducedMotion() || ctx.session.stillImage) {
+    if (prefersReducedMotion()) {
       ctx.release();
       return;
     }
@@ -143,34 +143,25 @@ export function releaseStage(ctx: AppContext): StagePanel {
 
   const node = h(
     "section",
-    { class: "stage", "aria-labelledby": "stage-05-title" },
-    h("p", { class: "stage-index", text: "05" }),
-    h("h1", { id: "stage-05-title", class: "stage-title", text: "Release" }),
+    { class: "screen", "aria-labelledby": "stage-05-title" },
+    h("p", { class: "screen-index", text: "05" }),
+    h("h1", { id: "stage-05-title", class: "screen-title", text: "Release" }),
 
     frame,
+    button,
 
     h(
       "div",
-      { class: "release-acts" },
-      h(
-        "div",
-        { class: "release-act" },
-        h("p", { class: "aside", text: "Keep it only to destroy it somewhere real." }),
-        h("button", {
-          class: "act",
-          type: "button",
-          text: "Keep",
-          "aria-label": "download the mark as SVG",
-          onClick: () => downloadSigil(composition, ctx.session.statement),
-        }),
-      ),
-      h(
-        "div",
-        { class: "release-act" },
-        h("p", { class: "aside", text: "Nothing is stored elsewhere. Nothing can be recovered." }),
-        button,
-      ),
+      { class: "acts" },
+      h("button", {
+        class: "act",
+        type: "button",
+        text: "Keep",
+        "aria-label": "download the mark as SVG",
+        onClick: () => downloadSigil(composition, ctx.session.statement),
+      }),
     ),
+    h("p", { class: "aside", text: "Keep it only to destroy it somewhere real." }),
   );
 
   return { node, dispose: () => cancelAnimationFrame(raf) };

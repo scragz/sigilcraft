@@ -1,10 +1,13 @@
 /*
  * The ink field.
  *
+ * Mobile is the design. Wide viewports get the same column with more room
+ * around it — there is no second layout.
+ *
  * One constraint here is not aesthetic: the glyph's dimmest pulse state
  * (opacity 0.55 over --field) must still clear 4.5:1 against the background.
- * With #e4dfd4 on #08080a that lands at 4.96:1. Moving either colour
- * means re-checking it.
+ * With #e4dfd4 on #08080a that lands at 4.96:1. Moving either colour means
+ * re-checking it.
  */
 
 :root {
@@ -19,6 +22,8 @@
 
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  --bar: 4.5rem;
 
   color-scheme: dark;
 }
@@ -42,6 +47,8 @@ body {
   line-height: 1.75;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  /* No blue flash on tap, and no long-press menu over the mark. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Vignette and grain. Both inert, both behind everything. */
@@ -69,30 +76,36 @@ body::after {
   min-height: 100dvh;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  padding: 2.5rem 1.5rem 7rem;
+  padding: calc(1.4rem + env(safe-area-inset-top)) 1.25rem
+    calc(var(--bar) + 1.5rem + env(safe-area-inset-bottom));
+  /* Half this app is tapping and holding things; none of it is reading a
+     selection. Prose and the statement field opt back in below. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .brand {
   font-family: var(--mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.62em;
+  font-size: 0.58rem;
+  letter-spacing: 0.6em;
   text-transform: uppercase;
   color: var(--ink-ghost);
   text-align: center;
-  text-indent: 0.62em;
+  text-indent: 0.6em;
 }
 
-.stage-host {
+.screen-host {
   display: grid;
   align-content: center;
   justify-items: center;
-  padding: 4rem 0;
+  padding: 2.5rem 0;
 }
 
+/* Only the entry screen carries it; everywhere else it is noise. */
 .colophon {
   font-family: var(--mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.3em;
+  font-size: 0.55rem;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--ink-ghost);
   text-align: center;
@@ -101,143 +114,153 @@ body::after {
   color: inherit;
   text-decoration: none;
 }
-.colophon a:hover {
-  color: var(--ink-faint);
+.shell:not([data-stage="1"]) .colophon {
+  visibility: hidden;
 }
 
-/* The rail is numerals and nothing else. */
+/* The bar is numerals and nothing else, at every width. */
 .rail {
   position: fixed;
-  left: 2.2rem;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 3;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--field) 55%, transparent);
 }
 .rail-list {
   list-style: none;
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
-  display: grid;
-  gap: 0.9rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.2rem;
 }
 .rail-item {
   display: block;
-  color: rgba(228, 223, 212, 0.24);
+  min-width: 2.75rem;
+  padding: 0.55rem 0.4rem;
   background: none;
   border: 0;
-  padding: 0.15rem 0.5rem 0.15rem 0;
+  border-top: 1px solid transparent;
   font-family: var(--mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.24em;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+  color: rgba(228, 223, 212, 0.24);
   cursor: pointer;
-  transition: color 0.5s ease;
-}
-.rail-item:hover:not(.is-locked) {
-  color: var(--ink-faint);
+  transition: color 0.5s ease, border-color 0.5s ease;
 }
 .rail-item.is-visited {
   color: var(--ink-faint);
 }
 .rail-item.is-current {
   color: var(--gold);
-}
-.rail-item.is-current::after {
-  content: "";
-  display: inline-block;
-  width: 1.1rem;
-  height: 1px;
-  margin-left: 0.5rem;
-  vertical-align: middle;
-  background: var(--gold-dim);
+  border-top-color: var(--gold-dim);
 }
 .rail-item.is-locked {
   cursor: not-allowed;
-  opacity: 0.4;
+  color: rgba(228, 223, 212, 0.1);
 }
 .rail-item:focus-visible {
   outline: 1px solid var(--gold-dim);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
-/* ------------------------------------------------------------------ stage */
+/* ----------------------------------------------------------------- screen */
 
-.stage {
-  width: min(30rem, 100%);
+.screen {
+  width: min(26rem, 100%);
   text-align: center;
-  animation: surface 1.1s ease-out both;
+  animation: surface 0.7s ease-out both;
 }
 @keyframes surface {
   from {
     opacity: 0;
+    transform: translateY(0.5rem);
   }
 }
 
-.stage-index {
+.screen-index {
   font-family: var(--mono);
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   letter-spacing: 0.5em;
   color: var(--gold);
-  margin: 0 0 1.6rem;
+  margin: 0 0 1.4rem;
   text-indent: 0.5em;
 }
-.stage-title {
-  font-size: clamp(1.15rem, 3vw, 1.5rem);
+.screen-title {
+  font-size: clamp(1.05rem, 4.5vw, 1.35rem);
   font-weight: 400;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   text-indent: 0.3em;
-  margin: 0 0 2.8rem;
+  margin: 0 0 2.4rem;
   color: var(--ink);
 }
-.stage-title:focus-visible {
+.screen-title:focus-visible {
   outline: none;
 }
-.stage-title::after {
+.screen-title::after {
   content: "";
   display: block;
-  width: 2.2rem;
+  width: 2rem;
   height: 1px;
-  margin: 1.6rem auto 0;
+  margin: 1.4rem auto 0;
   background: var(--gold-dim);
 }
 
 /* The little text that is left. */
+.epigraph p,
+.aside,
+.statement-input {
+  user-select: text;
+  -webkit-user-select: text;
+}
 .epigraph p {
-  margin: 0 0 1.5rem;
+  margin: 0 0 1.4rem;
   color: var(--ink-dim);
   text-wrap: pretty;
 }
 .epigraph p:first-child {
   color: var(--ink);
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   line-height: 1.6;
 }
 .aside {
-  margin: 2.4rem 0 0;
+  margin: 2.2rem 0 0;
   color: var(--ink-faint);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-style: italic;
   text-wrap: pretty;
 }
-.whisper {
+.whisper,
+.hint {
   font-family: var(--mono);
-  font-size: 0.58rem;
+  font-size: 0.56rem;
   letter-spacing: 0.26em;
   text-transform: uppercase;
   color: var(--ink-ghost);
-  margin: 2.4rem 0 0;
   text-indent: 0.26em;
+}
+.whisper {
+  margin: 2.4rem 0 0;
+}
+.hint {
+  margin: 1.4rem 0 0;
+  min-height: 1.2em;
+  transition: opacity 0.6s ease;
 }
 
 /* Laws: stated, never argued. */
 .laws {
   list-style: none;
-  margin: 2.6rem 0 0;
+  margin: 2.4rem 0 0;
   padding: 0;
   display: grid;
-  gap: 0.7rem;
+  gap: 0.65rem;
   font-family: var(--mono);
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   letter-spacing: 0.26em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -251,20 +274,20 @@ body::after {
 .acts {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.6rem;
+  gap: 1.4rem;
   justify-content: center;
   align-items: center;
-  margin: 2.8rem 0 0;
+  margin: 2.4rem 0 0;
 }
 .act {
   font-family: var(--mono);
-  font-size: 0.64rem;
+  font-size: 0.62rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   text-indent: 0.3em;
   background: none;
   border: 0;
-  padding: 0.4rem 0;
+  padding: 0.5rem 0.2rem;
   color: var(--ink-faint);
   cursor: pointer;
   transition: color 0.4s ease;
@@ -283,14 +306,67 @@ body::after {
 .act-primary {
   color: var(--ink);
   border: 1px solid var(--rule);
-  padding: 0.8rem 1.9rem;
+  padding: 0.85rem 2rem;
   transition: border-color 0.4s ease, color 0.4s ease;
 }
 .act-primary:hover:not(:disabled) {
   border-color: var(--gold-dim);
 }
 
-/* ------------------------------------------------------------- stage 01 */
+/*
+ * The act that hangs under a mark. A hairline lozenge on a tether, with a
+ * gold bloom that comes up from underneath it on contact.
+ */
+.sigil-act {
+  --progress: 0%;
+  position: relative;
+  display: block;
+  margin: 3.2rem auto 0;
+  padding: 0.95rem 2.4rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  text-indent: 0.34em;
+  color: var(--ink-dim);
+  background-color: transparent;
+  background-image: linear-gradient(
+    to right,
+    rgba(185, 138, 75, 0.28) var(--progress),
+    transparent var(--progress)
+  );
+  border: 1px solid var(--rule);
+  border-radius: 2rem;
+  cursor: pointer;
+  transition: color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+}
+.sigil-act::before {
+  /* The tether up to the mark. */
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 1px;
+  height: 2.1rem;
+  background: linear-gradient(to bottom, transparent, var(--rule));
+}
+.sigil-act:hover,
+.sigil-act:focus-visible {
+  color: var(--ink);
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 22px -8px rgba(185, 138, 75, 0.55);
+  outline: none;
+}
+.sigil-act:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.sigil-act-release {
+  color: var(--ink);
+  border-color: var(--gold-dim);
+}
+
+/* ------------------------------------------------------------- screen 01 */
 
 .statement-input {
   display: block;
@@ -301,7 +377,7 @@ body::after {
   border-radius: 0;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   line-height: 1.6;
   text-align: center;
   padding: 0.8rem 0.4rem 1.1rem;
@@ -324,7 +400,7 @@ body::after {
   margin: 1.2rem 0 0;
 }
 
-/* ------------------------------------------------------------- stage 02 */
+/* ------------------------------------------------------------- screen 02 */
 
 .letter-grid {
   font-family: var(--mono);
@@ -336,7 +412,7 @@ body::after {
   word-break: break-all;
 }
 .letter-grid-before {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   letter-spacing: 0.12em;
   color: var(--ink-ghost);
 }
@@ -344,7 +420,7 @@ body::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.15rem;
+  min-width: 1.1rem;
 }
 .cell-kept {
   color: var(--ink-dim);
@@ -354,19 +430,19 @@ body::after {
   text-decoration-color: var(--ink-ghost);
 }
 .strip-rule {
-  width: 2.2rem;
+  width: 2rem;
   height: 1px;
-  margin: 2.2rem auto;
+  margin: 2rem auto;
   background: var(--gold-dim);
 }
 .letter-grid-after {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   letter-spacing: 0.3em;
   color: var(--ink);
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 .letter-grid-after .cell {
-  min-width: 1.6rem;
+  min-width: 1.5rem;
 }
 .letter-grid-after.is-animated .cell {
   animation: settle 0.9s ease-out both;
@@ -379,19 +455,21 @@ body::after {
 }
 .letter-count {
   font-family: var(--mono);
-  font-size: 0.58rem;
+  font-size: 0.56rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--ink-ghost);
-  margin: 1.4rem 0 0;
+  margin: 1.3rem 0 0;
   text-indent: 0.3em;
 }
 
 /* ------------------------------------------------------------ the glyph */
 
-.glyph-frame {
+.glyph-frame,
+.mark {
   position: relative;
-  width: min(24rem, 74vw);
+  display: block;
+  width: min(20rem, 72vw);
   margin: 0 auto;
 }
 .glyph {
@@ -416,11 +494,11 @@ body::after {
 }
 .glyph-caption {
   font-family: var(--mono);
-  font-size: 0.58rem;
+  font-size: 0.56rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--ink-ghost);
-  margin: 1.8rem 0 0;
+  margin: 1.6rem 0 0;
   text-indent: 0.3em;
 }
 .glyph-frame.is-dissolving .glyph {
@@ -434,12 +512,12 @@ body::after {
   }
 }
 
-/* ------------------------------------------------------------- stage 03 */
+/* ------------------------------------------------------------- screen 03 */
 
 /* A hairline and a bead. The stock range control is far too loud for this. */
 .slider {
   display: block;
-  width: min(18rem, 80%);
+  width: min(16rem, 80%);
   margin: 2rem auto 0;
   height: 1.4rem;
   background: transparent;
@@ -454,9 +532,9 @@ body::after {
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 9px;
-  height: 9px;
-  margin-top: -4px;
+  width: 11px;
+  height: 11px;
+  margin-top: -5px;
   border: 0;
   border-radius: 50%;
   background: var(--gold);
@@ -466,8 +544,8 @@ body::after {
   background: var(--rule);
 }
 .slider::-moz-range-thumb {
-  width: 9px;
-  height: 9px;
+  width: 11px;
+  height: 11px;
   border: 0;
   border-radius: 50%;
   background: var(--gold);
@@ -478,66 +556,30 @@ body::after {
 }
 .slider-readout {
   font-family: var(--mono);
-  font-size: 0.58rem;
+  font-size: 0.56rem;
   letter-spacing: 0.3em;
   color: var(--ink-ghost);
-  margin: 0.9rem 0 0;
+  margin: 0.8rem 0 0;
   min-height: 1.2em;
   text-indent: 0.3em;
 }
 
-/* ------------------------------------------------------------- stage 04 */
+/* ------------------------------------------------------------- screen 04 */
 
-.methods {
-  display: grid;
-  gap: 0;
-  margin: 0 auto 3rem;
-  width: min(22rem, 100%);
-  border-top: 1px solid var(--rule);
-}
-.method {
-  display: block;
-  width: 100%;
+/* The mark is the control. Nothing else on the screen is. */
+.mark {
+  padding: 0;
   background: none;
   border: 0;
-  border-bottom: 1px solid var(--rule);
-  padding: 0.95rem 0.5rem;
-  color: inherit;
   cursor: pointer;
-  transition: color 0.4s ease;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
 }
-.method-name {
-  display: block;
-  font-family: var(--mono);
-  font-size: 0.64rem;
-  letter-spacing: 0.34em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  text-indent: 0.34em;
-  transition: color 0.4s ease;
-}
-.method-line {
-  display: block;
-  font-size: 0.86rem;
-  font-style: italic;
-  color: var(--ink-ghost);
-  margin-top: 0.3rem;
-  transition: color 0.4s ease;
-}
-.method:hover .method-name {
-  color: var(--ink-dim);
-}
-.method.is-selected .method-name {
-  color: var(--gold);
-}
-.method.is-selected .method-line {
-  color: var(--ink-faint);
-}
-.method:focus-visible {
+.mark:focus-visible {
   outline: 1px solid var(--gold-dim);
-  outline-offset: -1px;
+  outline-offset: 1rem;
+  border-radius: 50%;
 }
-
 .charge-ring {
   position: absolute;
   inset: 0;
@@ -550,169 +592,17 @@ body::after {
   fill: none;
   stroke: var(--gold);
   stroke-width: 0.008;
-  opacity: 0.7;
+  opacity: 0.4;
+  transition: opacity 1.2s ease;
 }
-.charge-clock {
-  font-family: var(--mono);
-  font-size: 1.5rem;
-  letter-spacing: 0.24em;
-  margin: 2rem 0 0;
-  color: var(--ink-dim);
-  font-variant-numeric: tabular-nums;
-  text-indent: 0.24em;
-}
-.durations {
-  display: flex;
-  gap: 1.4rem;
-  justify-content: center;
-  margin-top: 0.9rem;
-}
-.chip {
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.24em;
-  background: none;
-  border: 0;
-  padding: 0.2rem 0;
-  color: var(--ink-ghost);
-  cursor: pointer;
-  transition: color 0.4s ease;
-}
-.chip:hover {
-  color: var(--ink-faint);
-}
-.chip.is-selected {
-  color: var(--gold);
-}
-.hold {
-  display: grid;
-  place-items: center;
-  width: 9.5rem;
-  height: 9.5rem;
-  margin: 2.4rem auto 0;
-  font-family: var(--mono);
-  font-size: 0.64rem;
-  letter-spacing: 0.34em;
-  text-transform: uppercase;
-  text-indent: 0.34em;
-  padding: 0;
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: 50%;
-  color: var(--ink);
-  cursor: pointer;
-  touch-action: none;
-  user-select: none;
-  transition: background 1.2s ease, border-color 1.2s ease, letter-spacing 1.2s ease;
-}
-.hold:hover:not(:disabled) {
-  border-color: var(--gold-dim);
-}
-.hold.is-holding {
-  border-color: var(--gold-dim);
-  background: rgba(185, 138, 75, 0.07);
-  letter-spacing: 0.5em;
-}
-.hold:disabled {
-  color: var(--ink-ghost);
-  cursor: not-allowed;
+.mark.is-charging .charge-ring path {
+  opacity: 0.85;
 }
 
-/* The pre-charge notice. Deliberately plainer than everything around it. */
-.gate {
-  width: min(22rem, 100%);
-  margin: 3rem auto 0;
-  padding-top: 1.4rem;
-  border-top: 1px solid var(--rule);
-  text-align: left;
-}
-.gate-row {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 0.55rem 0;
-}
-.gate-row label {
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  flex: 1;
-}
-.gate-row input[type="checkbox"] {
-  accent-color: var(--gold);
-  width: 1rem;
-  height: 1rem;
-}
-.gate-row .slider {
-  width: 9rem;
-  margin: 0;
-}
-.gate-note {
-  font-family: var(--mono);
-  font-size: 0.54rem;
-  letter-spacing: 0.16em;
-  line-height: 1.9;
-  text-transform: uppercase;
-  color: var(--ink-ghost);
-  margin: 0.6rem 0 0;
-}
+/* ------------------------------------------------------------- screen 05 */
 
-/* ------------------------------------------------------------- stage 05 */
-
-.release-acts {
-  display: grid;
-  gap: 2.6rem;
-  margin-top: 3rem;
-  justify-items: center;
-}
-.release-act .aside {
-  margin: 0 0 0.9rem;
-}
-.act-release {
-  --progress: 0%;
-  border: 1px solid var(--gold-dim);
-  color: var(--ink);
-  padding: 0.9rem 2.2rem;
-  background-image: linear-gradient(
-    to right,
-    rgba(185, 138, 75, 0.3) var(--progress),
-    transparent var(--progress)
-  );
-}
-
-/* ------------------------------------------------------------ responsive */
-
-@media (max-width: 46rem) {
-  .shell {
-    padding: 2rem 1.2rem 6rem;
-  }
-  .rail {
-    left: 0;
-    right: 0;
-    top: auto;
-    bottom: 0;
-    transform: none;
-    background: linear-gradient(to top, var(--field) 60%, transparent);
-    padding: 1.4rem 0 1rem;
-  }
-  .rail-list {
-    grid-auto-flow: column;
-    justify-content: center;
-    gap: 0.4rem;
-  }
-  .rail-item {
-    padding: 0.3rem 0.55rem;
-  }
-  .rail-item.is-current::after {
-    display: block;
-    width: 100%;
-    margin: 0.35rem 0 0;
-  }
-  .stage-host {
-    padding: 2.5rem 0;
-  }
+.screen .sigil-act + .acts {
+  margin-top: 1.6rem;
 }
 
 /* --------------------------------------------------------- reduced motion */

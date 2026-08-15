@@ -26,7 +26,8 @@ export interface MethodProfile {
   visualHz: number;
   /** Amplitude of the luminance breathing, 0-1. */
   visualDepth: number;
-  defaultDuration: number;
+  /** How long a full charge takes, in seconds. Never shown as a number. */
+  duration: number;
 }
 
 export const METHODS: Record<MethodId, MethodProfile> = {
@@ -40,7 +41,7 @@ export const METHODS: Record<MethodId, MethodProfile> = {
     spineDb: 0,
     visualHz: 0.5,
     visualDepth: 1,
-    defaultDuration: 180,
+    duration: 180,
   },
   inhibitory: {
     id: "inhibitory",
@@ -52,7 +53,7 @@ export const METHODS: Record<MethodId, MethodProfile> = {
     spineDb: 0,
     visualHz: 0.25,
     visualDepth: 1,
-    defaultDuration: 180,
+    duration: 180,
   },
   excitatory: {
     id: "excitatory",
@@ -64,7 +65,7 @@ export const METHODS: Record<MethodId, MethodProfile> = {
     spineDb: 0,
     visualHz: 1,
     visualDepth: 1,
-    defaultDuration: 180,
+    duration: 180,
   },
   passive: {
     id: "passive",
@@ -76,14 +77,20 @@ export const METHODS: Record<MethodId, MethodProfile> = {
     spineDb: -24,
     visualHz: 0.25,
     visualDepth: 0.55,
-    defaultDuration: 600,
+    // Longest of the four, but not the spec's ten minutes: the method is
+    // assigned by the mark now rather than chosen, and a quarter of everyone
+    // should not be handed a ten-minute hold they did not pick.
+    duration: 300,
   },
 };
 
 export const METHOD_ORDER: MethodId[] = ["gnosis", "inhibitory", "excitatory", "passive"];
 
-export const DURATIONS = [60, 180, 600] as const;
-
-export function isMethodId(v: unknown): v is MethodId {
-  return typeof v === "string" && v in METHODS;
+/**
+ * The method is not chosen. It falls out of the mark, the same way the glyph
+ * and the audio's initial conditions do — a statement arrives already carrying
+ * the way it wants to be driven in.
+ */
+export function methodForSeed(seed: number): MethodProfile {
+  return METHODS[METHOD_ORDER[(seed >>> 3) % METHOD_ORDER.length]!];
 }
